@@ -1,8 +1,23 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:storages/storages.dart';
+
+int _bitmaps = 0;
+int _maxBitmaps = 0;
+
+void _add() {
+  ++_bitmaps;
+  _maxBitmaps = max(_maxBitmaps, _bitmaps);
+}
+
+void _sub() {
+  --_bitmaps;
+  _maxBitmaps = max(_maxBitmaps, _bitmaps);
+}
 
 class BitMapNaive {
   static const MethodChannel _channel = const MethodChannel('bitmap');
@@ -22,6 +37,7 @@ class BitMapNaive {
       await _channel.invokeMethod('dl', {
         'textureIds': textureIds,
       });
+      _textureSum -= textureIds.length;
     }
   }
 
@@ -56,6 +72,16 @@ class BitMapNaive {
     List cache = await _tryToFindBitMapCache(path, width, height, fit);
     bool findCache = cache[0];
     String value = cache[1];
+
+    if (textureId == -1) {
+      if (_textureSum >= _maxBitmaps) {
+        return null;
+      }
+    }
+
+    if (textureId == -1) {
+      ++_textureSum;
+    }
 
     print('textureId ... $textureId, findCache ... $findCache');
     // For some case, there is no need to transfer so many params.
@@ -188,11 +214,16 @@ class BitMapNaive {
   ///
   /// You can call it frequently, but in fact it will only be executed once.
   static Future<void> initialize = _init();
+
+  ///
+  ///
+  ///
+  static int _textureSum = 0;
 }
 
-/// Create a [BitMap] widget. 
+/// Create a [BitMap] widget.
 ///
-/// Note if you hot reload without [BitMapNaive.dispose], the textures will not 
+/// Note if you hot reload without [BitMapNaive.dispose], the textures will not
 /// be recycled and some bad images will show out.
 class BitMap extends StatefulWidget {
   BitMap({
@@ -225,15 +256,18 @@ class BitMap extends StatefulWidget {
 
 class BitMapNaiveState extends State<BitMap> {
   int _textureId;
+  bool useBitMap = true;
 
   @override
   void initState() {
     super.initState();
+    _add();
     run();
   }
 
   @override
   void dispose() {
+    _sub();
     put();
     super.dispose();
   }
@@ -255,7 +289,12 @@ class BitMapNaiveState extends State<BitMap> {
     BitMapNaive.render(widget.path, widget.width, widget.height, widget.fit)
         .then((value) {
       // value is invoked textureId.
+      put(); // put the old textureId if have.
       _textureId = value;
+      if (_textureId == null) {
+        useBitMap = false;
+        print('useBitMap ... $useBitMap');
+      }
 
       if (mounted) {
         setState(() {});
@@ -276,10 +315,17 @@ class BitMapNaiveState extends State<BitMap> {
     return Container(
       width: widget.width,
       height: widget.height,
-      child: _textureId == null
-          ? null
-          : Texture(
-              textureId: _textureId,
+      child: useBitMap
+          ? _textureId == null
+              ? null
+              : Texture(
+                  textureId: _textureId,
+                )
+          : Image.file(
+              File(widget.path),
+              width: widget.width,
+              height: widget.height,
+              fit: widget.fit,
             ),
     );
   }

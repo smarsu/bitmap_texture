@@ -53,6 +53,9 @@
       [_renders removeObjectForKey:textureId];
       [_textures unregisterTexture:[textureId longValue]];
     }
+    for (NSNumber *textureId in [_renders allKeys]) {
+      NSLog(@"Key kept ... %d\n", [textureId intValue]);
+    }
     result(nil);
   }
 }

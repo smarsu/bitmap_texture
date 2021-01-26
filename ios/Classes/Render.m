@@ -257,12 +257,14 @@ typedef struct {
 
 - (void)makeBitMap:(NSString *)path width:(int)width height:(int)height fit:(int)fit bitmap:(NSString *)bitmap findCache:(bool)findCache {
   if (!findCache) {
+    [_glock lock];
     UIImage *image = [UIImage imageWithContentsOfFile:path];
     image = [self resizeCrop:image size:CGSizeMake(_width, _height)];
     [self imageToColor:image];
     NSMutableData *data = [[NSMutableData alloc] init];
     [data appendBytes:_colors length:_height * _width * 4];
     [data writeToFile:bitmap atomically:YES];
+    [_glock unlock];
   }
   else {
     NSData *reader = [NSData dataWithContentsOfFile:bitmap];
@@ -292,6 +294,9 @@ typedef struct {
   CGImageRef cgCropedImageRef = CGImageCreateWithImageInRect(cgResizedImageRef, CGRectMake(x, y, width, height));
   
   UIImage *cropedImage = [UIImage imageWithCGImage:cgCropedImageRef];
+  
+  CGImageRelease(cgImageRef);
+  CGImageRelease(cgResizedImageRef);
 
   CGImageRelease(cgCropedImageRef);
   
@@ -309,6 +314,8 @@ typedef struct {
   CGColorSpaceRelease(colorSpace);
   CGContextClearRect(context, rect);
   CGContextDrawImage(context, rect, cgImageRef);
+
+  CGImageRelease(cgImageRef);
 
   CGContextRelease(context);
 }
