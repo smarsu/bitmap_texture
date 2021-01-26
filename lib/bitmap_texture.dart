@@ -71,10 +71,6 @@ class BitMapNaive {
 
     int textureId = _tryToGetTextureId(width, height);
 
-    List cache = await _tryToFindBitMapCache(path, width, height, fit);
-    bool findCache = cache[0];
-    String value = cache[1];
-
     if (textureId == -1) {
       if (_textureSum >= _maxBitmaps) {
         return null;
@@ -85,7 +81,11 @@ class BitMapNaive {
       ++_textureSum;
     }
 
-    await _storeCache(cache);
+    List cache = await _tryToFindBitMapCache(path, width, height, fit);
+    bool findCache = cache[0];
+    String value = cache[1];
+
+    // await _storeCache(cache);
 
     print('textureId ... $textureId, findCache ... $findCache');
     // For some case, there is no need to transfer so many params.
@@ -147,7 +147,10 @@ class BitMapNaive {
       Uint8List colors = (await image.toByteData()).buffer.asUint8List();
       await File(value).writeAsBytes(colors);
 
+      await _fixSizedStorage.set(key, value);
+
       findCache = true;
+      print('BitMap ... codec');
     }
 
     return [findCache, value, key];
