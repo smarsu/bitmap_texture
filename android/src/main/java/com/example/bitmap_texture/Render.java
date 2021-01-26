@@ -59,11 +59,17 @@ public class Render {
     -1f,  1f, 0.0f,
      1f,  1f, 0.0f,
   };
+  // static final float[] textureData = {
+  //   0f, 1f, 0.0f,
+  //   1f, 1f, 0.0f,
+  //   0f, 0f, 0.0f,
+  //   1f, 0f, 0.0f,
+  // };
   static final float[] textureData = {
-    0f, 1f, 0.0f,
-    1f, 1f, 0.0f,
     0f, 0f, 0.0f,
     1f, 0f, 0.0f,
+    0f, 1f, 0.0f,
+    1f, 1f, 0.0f,
   };
   static final int COORS_PER_VERTEX = 3;
   static final int vertexCount = vertexData.length / COORS_PER_VERTEX;

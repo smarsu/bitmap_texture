@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -83,6 +85,8 @@ class BitMapNaive {
       ++_textureSum;
     }
 
+    await _storeCache(cache);
+
     print('textureId ... $textureId, findCache ... $findCache');
     // For some case, there is no need to transfer so many params.
     int invokedTextureId = await _channel.invokeMethod('r', {
@@ -95,7 +99,7 @@ class BitMapNaive {
       'findCache': findCache,
     });
 
-    await _storeCache(cache);
+    // await _storeCache(cache);
 
     return invokedTextureId;
   }
@@ -136,6 +140,14 @@ class BitMapNaive {
     bool findCache = value == null ? false : true;
     if (!findCache) {
       value = await _fixSizedStorage.touch(key);
+
+      ui.Codec codec = await ui.instantiateImageCodec(await File(path).readAsBytes(), targetWidth: width.toInt(), targetHeight: height.toInt(), allowUpscaling: true);
+      ui.FrameInfo frameInfo = await codec.getNextFrame();
+      ui.Image image = frameInfo.image;
+      Uint8List colors = (await image.toByteData()).buffer.asUint8List();
+      await File(value).writeAsBytes(colors);
+
+      findCache = true;
     }
 
     return [findCache, value, key];

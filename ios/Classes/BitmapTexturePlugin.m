@@ -33,10 +33,9 @@
       NSInteger __block id = 0;  // Register TextureId
       Render *render = [[Render alloc] initWithCallback:^() {
         [self.textures textureFrameAvailable:id];
-      } width:width height:height];
+      } width:width height:height glock:_glock];
       id = (NSInteger) [_textures registerTexture:render];
       [render setId:id];
-      [render setLock:_glock];
       [render r:result path:path width:width height:height fit:fit bitmap:bitmap findCache:findCache];
       _renders[@(id)] = render;
     }

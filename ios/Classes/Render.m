@@ -47,12 +47,13 @@ typedef struct {
 
 @implementation Render
 
-- (instancetype)initWithCallback:(void (^)(void))callback width:(int)width height:(int)height {
+- (instancetype)initWithCallback:(void (^)(void))callback width:(int)width height:(int)height glock:(NSLock *)glock {
   self = [super init];
   if (self) {
     _callback = callback;
     _width = width;
     _height = height;
+    _glock = glock;
     
     _vertices = NULL;
     _colors = NULL;
@@ -73,10 +74,6 @@ typedef struct {
 
 - (void)setId:(NSInteger)textureId {
   _textureId = textureId;
-}
-
-- (void)setLock:(NSLock *)glock {
-  _glock = glock;
 }
 
 - (void)r:(FlutterResult)result path:(NSString *)path width:(int)width height:(int)height fit:(int)fit bitmap:(NSString *)bitmap findCache:(bool)findCache {
@@ -208,10 +205,14 @@ typedef struct {
   glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
   GLsizeiptr bufferSizeBytes = sizeof(SenceVertex) * 4;
   _vertices = malloc(sizeof(SenceVertex) * 4);
-  _vertices[0] = (SenceVertex) {{-1,   1, 0}, {0, 0}};
-  _vertices[1] = (SenceVertex) {{-1,  -1, 0}, {0, 1}};
-  _vertices[2] = (SenceVertex) {{ 1,   1, 0}, {1, 0}};
-  _vertices[3] = (SenceVertex) {{ 1,  -1, 0}, {1, 1}};
+  // _vertices[0] = (SenceVertex) {{-1,   1, 0}, {0, 0}};
+  // _vertices[1] = (SenceVertex) {{-1,  -1, 0}, {0, 1}};
+  // _vertices[2] = (SenceVertex) {{ 1,   1, 0}, {1, 0}};
+  // _vertices[3] = (SenceVertex) {{ 1,  -1, 0}, {1, 1}};
+  _vertices[0] = (SenceVertex) {{-1,   1, 0}, {0, 1}};
+  _vertices[1] = (SenceVertex) {{-1,  -1, 0}, {0, 0}};
+  _vertices[2] = (SenceVertex) {{ 1,   1, 0}, {1, 1}};
+  _vertices[3] = (SenceVertex) {{ 1,  -1, 0}, {1, 0}};
   glBufferData(GL_ARRAY_BUFFER, bufferSizeBytes, _vertices, GL_STATIC_DRAW);
 
   glEnableVertexAttribArray(positionSlot);

@@ -75,19 +75,21 @@ class _AlbumState extends State<Album> {
       List<AssetPathEntity> assetPathEntityList =
           await PhotoManager.getAssetPathList();
       for (var assetPathEntity in assetPathEntityList) {
-        List<AssetEntity> assetEntityList = await assetPathEntity.assetList;
-        for (var assetEntity in assetEntityList) {
-          if (assetEntity.width > 0 && assetEntity.height > 0) {
-            String key = assetEntity.id.replaceAll('/', '_');
-            String path = await fixSizedStorage.get(key);
-            if (path == null) {
-              path = await fixSizedStorage.touch(key);
-              Uint8List thumbData =
-                  await assetEntity.thumbDataWithSize(width, height);
-              File(path).writeAsBytesSync(thumbData);
-              await fixSizedStorage.set(key, path);
-            }
-            list.add(path);
+        if (['Recent', 'Recents'].contains(assetPathEntity.name)) {
+          List<AssetEntity> assetEntityList = await assetPathEntity.assetList;
+          for (var assetEntity in assetEntityList) {
+            // if (assetEntity.width > 0 && assetEntity.height > 0) {
+              String key = assetEntity.id.replaceAll('/', '_');
+              String path = await fixSizedStorage.get(key);
+              if (path == null) {
+                path = await fixSizedStorage.touch(key);
+                Uint8List thumbData =
+                    await assetEntity.thumbDataWithSize(width, height);
+                File(path).writeAsBytesSync(thumbData);
+                await fixSizedStorage.set(key, path);
+              }
+              list.add(path);
+            // }
           }
         }
       }

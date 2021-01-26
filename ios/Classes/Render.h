@@ -2,7 +2,7 @@
 
 @interface Render : NSObject<FlutterTexture>
 
-- (instancetype)initWithCallback:(void (^)(void))callback width:(int)width height:(int)height;
+- (instancetype)initWithCallback:(void (^)(void))callback width:(int)width height:(int)height glock:(NSLock *)glock;
 
 - (void)r:(FlutterResult)result path:(NSString *)path width:(int)width height:(int)height fit:(int)fit bitmap:(NSString *)bitmap findCache:(bool)findCache;
 
