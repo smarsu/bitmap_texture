@@ -278,7 +278,7 @@ typedef struct {
   CGImageRef cgImageRef = [image CGImage];
   size_t srcWidth = CGImageGetWidth(cgImageRef);
   size_t srcHeight = CGImageGetHeight(cgImageRef);
-  CGImageRelease(cgImageRef);
+//  CGImageRelease(cgImageRef);
   if (srcWidth == 0 || srcHeight == 0) {
     NSLog(@"Error Image: %lux%lu\n", srcWidth, srcHeight);
     memset(_colors, 0, _height * _width * 4);
