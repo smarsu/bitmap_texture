@@ -1,3 +1,4 @@
+import 'package:bitmap_texture/bitmap_texture.dart';
 import 'package:bitmap_texture_example/album.dart';
 import 'package:flutter/material.dart';
 
@@ -24,6 +25,11 @@ class _MyAppState extends State<MyApp> {
           title: const Text('Plugin example app'),
         ),
         body: Album(),
+        // body: BitMap(
+        //   path: "1",
+        //   width: 200,
+        //   height: 200,
+        // ),
       ),
     );
   }

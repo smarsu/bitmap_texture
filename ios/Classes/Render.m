@@ -259,16 +259,33 @@ typedef struct {
   if (!findCache) {
     [_glock lock];
     UIImage *image = [UIImage imageWithContentsOfFile:path];
-    image = [self resizeCrop:image size:CGSizeMake(_width, _height)];
-    [self imageToColor:image];
-    NSMutableData *data = [[NSMutableData alloc] init];
-    [data appendBytes:_colors length:_height * _width * 4];
-    [data writeToFile:bitmap atomically:YES];
+    if ([self checkImage:image]) {
+      image = [self resizeCrop:image size:CGSizeMake(_width, _height)];
+      [self imageToColor:image];
+      NSMutableData *data = [[NSMutableData alloc] init];
+      [data appendBytes:_colors length:_height * _width * 4];
+      [data writeToFile:bitmap atomically:YES];
+    }
     [_glock unlock];
   }
   else {
     NSData *reader = [NSData dataWithContentsOfFile:bitmap];
     [reader getBytes:_colors length:_height * _width * 4];
+  }
+}
+
+- (bool) checkImage: (UIImage *)image {
+  CGImageRef cgImageRef = [image CGImage];
+  size_t srcWidth = CGImageGetWidth(cgImageRef);
+  size_t srcHeight = CGImageGetHeight(cgImageRef);
+  CGImageRelease(cgImageRef);
+  if (srcWidth == 0 || srcHeight == 0) {
+    NSLog(@"Error Image: %lux%lu\n", srcWidth, srcHeight);
+    memset(_colors, 0, _height * _width * 4);
+    return false;
+  }
+  else {
+    return true;
   }
 }
 
