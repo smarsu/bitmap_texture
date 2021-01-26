@@ -175,7 +175,7 @@ class BitMapNaive {
   ///
   /// This make it safe to save bitmap.
   static FixSizedStorage _fixSizedStorage =
-      FixSizedStorage('BitMapTest8', capacity: 5 * 1024 * 1024 * 1024);
+      FixSizedStorage.fromId('__BitMap__', capacity: 5 * 1024 * 1024 * 1024);
 
   /// A pool of textureIds.
   ///

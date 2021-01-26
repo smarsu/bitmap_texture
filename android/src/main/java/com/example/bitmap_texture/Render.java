@@ -339,8 +339,8 @@ public class Render {
   }
 
   private Bitmap resizeCrop(Bitmap bitmap, int width, int height) {
-    int srcWidth = bitmap.getWidth();
-    int srcHeight = bitmap.getHeight();
+    float srcWidth = (float) bitmap.getWidth();
+    float srcHeight = (float) bitmap.getHeight();
     float scale = Math.max(width / srcWidth, height / srcHeight);
     int dstWidth = Math.round(srcWidth * scale);
     int dstHeight = Math.round(srcHeight * scale);

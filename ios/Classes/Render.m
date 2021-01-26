@@ -41,7 +41,7 @@ typedef struct {
 @property (nonatomic) NSString *bitmap;
 @property (nonatomic) bool findCache;
 
-@property (nonatomic) void *colors;  // The raw rgba data of image.
+@property (nonatomic) uint8_t *colors;  // The raw rgba data of image.
 
 @end
 
@@ -271,8 +271,8 @@ typedef struct {
 }
 
 - (UIImage *)resizeCrop: (UIImage *)image size:(CGSize)size {
-  int width = size.width;
-  int height = size.height;
+  float width = (float) size.width;
+  float height = (float) size.height;
   
   CGImageRef cgImageRef = [image CGImage];
   size_t srcWidth = CGImageGetWidth(cgImageRef);
@@ -282,7 +282,7 @@ typedef struct {
   int dstHeight = round(srcHeight * scale);
   int x = (dstWidth - width) / 2;
   int y = (dstHeight - height) / 2;
-  
+
   UIGraphicsBeginImageContext(CGSizeMake(dstWidth, dstHeight));
   [image drawInRect:CGRectMake(0, 0, dstWidth, dstHeight)];
   UIImage *resizedImage = UIGraphicsGetImageFromCurrentImageContext();
