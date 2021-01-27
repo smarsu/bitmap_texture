@@ -266,6 +266,7 @@ typedef struct {
 
 - (void)makeBitMap:(NSString *)path width:(int)width height:(int)height srcWidth:(int)srcWidth srcHeight:(int)srcHeight fit:(int)fit bitmap:(NSString *)bitmap findCache:(bool)findCache {
   if (!findCache) {
+    [_glock lock];
     uint8_t *data = malloc(sizeof(uint8_t) * srcWidth * srcHeight * 4);
     
     // read and crop
@@ -284,6 +285,7 @@ typedef struct {
     [mutdata writeToFile:bitmap atomically:YES];
     
     free(data);
+    [_glock unlock];
   }
   else {
     NSData *reader = [NSData dataWithContentsOfFile:bitmap];
