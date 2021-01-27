@@ -1,5 +1,6 @@
 name: bitmap_texture
 description: BitMap is an alternative to Image.file, achieving higher performance image display.
+version: 0.0.1
 homepage: https://github.com/smarsu/bitmap_texture.git
 
 environment:
