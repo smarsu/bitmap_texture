@@ -266,16 +266,9 @@ typedef struct {
 
 - (void)makeBitMap:(NSString *)path width:(int)width height:(int)height srcWidth:(int)srcWidth srcHeight:(int)srcHeight fit:(int)fit bitmap:(NSString *)bitmap findCache:(bool)findCache {
   if (!findCache) {
-//    [_glock lock];
-//    UIImage *image = [UIImage imageWithContentsOfFile:path];
-//    if ([self checkImage:image]) {
-//      image = [self resizeCrop:image size:CGSizeMake(_width, _height)];
-//      [self imageToColor:image];
-//      NSMutableData *data = [[NSMutableData alloc] init];
-//      [data appendBytes:_colors length:_height * _width * 4];
-//      [data writeToFile:bitmap atomically:YES];
-//    }
     uint8_t *data = malloc(sizeof(uint8_t) * srcWidth * srcHeight * 4);
+    
+    // read and crop
     NSData *reader = [NSData dataWithContentsOfFile:bitmap];
     [reader getBytes:data length:srcWidth * srcHeight * 4];
     int x = (srcWidth - _width) / 2;
@@ -285,12 +278,12 @@ typedef struct {
       memcpy(_colors + i * _width * 4, data + start, sizeof(int8_t) * _width * 4);
     }
     
+    // write croped image.
     NSMutableData *mutdata = [[NSMutableData alloc] init];
     [mutdata appendBytes:_colors length:_height * _width * 4];
     [mutdata writeToFile:bitmap atomically:YES];
     
     free(data);
-//    [_glock unlock];
   }
   else {
     NSData *reader = [NSData dataWithContentsOfFile:bitmap];
@@ -302,7 +295,7 @@ typedef struct {
   CGImageRef cgImageRef = [image CGImage];
   size_t srcWidth = CGImageGetWidth(cgImageRef);
   size_t srcHeight = CGImageGetHeight(cgImageRef);
-//  CGImageRelease(cgImageRef);
+
   if (srcWidth == 0 || srcHeight == 0) {
     NSLog(@"Error Image: %lux%lu\n", srcWidth, srcHeight);
     memset(_colors, 0, _height * _width * 4);

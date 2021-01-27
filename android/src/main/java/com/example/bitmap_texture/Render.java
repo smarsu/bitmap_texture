@@ -2,7 +2,6 @@ package com.example.bitmap_texture;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
@@ -12,9 +11,6 @@ import android.os.HandlerThread;
 import android.os.Looper;
 
 import androidx.annotation.RequiresApi;
-
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.request.FutureTarget;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -26,7 +22,6 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
-import java.util.concurrent.ExecutionException;
 
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
@@ -100,16 +95,16 @@ public class Render {
   }
 
   /// value is the path of bitmap.
-  public void r(final Result result, final String path, final int width, final int height, final int srcWidth, final int srcHeight, final int fit, final String value, final Boolean findCache) {
+  public void r(final Result result, final int width, final int height, final int srcWidth, final int srcHeight, final int fit, final String value, final Boolean findCache) {
     handler.post(new Runnable() {
       @Override
       public void run() {
-        render(result, path, width, height, srcWidth, srcHeight, fit, value, findCache);
+        render(result, width, height, srcWidth, srcHeight, fit, value, findCache);
       }
     });
   }
 
-  /// dispose all and wait the end of HandlerThread.
+  /// dispose and wait the end of HandlerThread.
   @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
   public void d() throws InterruptedException {
     handler.post(new Runnable() {
@@ -283,8 +278,8 @@ public class Render {
     GLES20.glVertexAttribPointer(afPosition, COORS_PER_VERTEX, GLES20.GL_FLOAT, false, vertexStride, textureBuffer);
   }
 
-  private void render(final Result result, String path, int width, int height, int srcWidth, int srcHeight, int fit, String value, Boolean findCache) {
-    makeBitMap(path, width, height, srcWidth, srcHeight, fit, value, findCache);
+  private void render(final Result result, int width, int height, int srcWidth, int srcHeight, int fit, String value, Boolean findCache) {
+    makeBitMap(width, height, srcWidth, srcHeight, fit, value, findCache);
 
     if (bitmap != null && !bitmap.isRecycled()) {
       GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
@@ -300,58 +295,41 @@ public class Render {
     });
   }
 
-  private void makeBitMap(String path, int width, int height, int srcWidth, int srcHeight, int fit, String value, Boolean findCache) {
+  private void makeBitMap(int width, int height, int srcWidth, int srcHeight, int fit, String value, Boolean findCache) {
     if (!findCache) {
-//      FutureTarget<Bitmap> bitmapFutureTarget = Glide.with(context).asBitmap().load(path).submit();
-//      try {
-//        bitmap = bitmapFutureTarget.get();
-//      } catch (InterruptedException ignored) {
-//      } catch (ExecutionException ignored) {
-//      }
-//
-//      switch (fit) {
-//        case 0:
-//        case 2:
-//        default:
-//          bitmap = resizeCrop(bitmap, width, height);
-//          break;
-//      }
-//
-//      try {
-//        FileOutputStream out = new FileOutputStream(value);
-//        ByteBuffer colors = ByteBuffer.allocate(height * width * 4);
-//        bitmap.copyPixelsToBuffer(colors);
-//        out.write(colors.array());
-//      }
-//      catch (IOException ignored) {
-//      }
-      // rgba
       ByteBuffer data = ByteBuffer.allocate(srcHeight * srcWidth * 4);
-      // value is the path of bitmap.
-      File file = new File(value);
+      File file = new File(value);  // value is the path of bitmap.
       try {
         FileInputStream in = new FileInputStream(file);
         int size = in.read(data.array());
-        byte[] bytes = data.array();
+        if (size == srcHeight * srcWidth * 4) {
+          byte[] bytes = data.array();
 
-        int x = (srcWidth - width) / 2;
-        int y = (srcHeight - height) / 2;
+          int x = (srcWidth - width) / 2;
+          int y = (srcHeight - height) / 2;
 
-        ByteBuffer colors = ByteBuffer.allocate(height * width * 4);
-        byte[] byteColors = colors.array();
-        for (int idx = 0; idx < height; ++idx) {
-//          System.arraycopy(byteColors, idx * width * 4, bytes, y * srcWidth * 4 + x * 4 + idx * srcWidth * 4, width * 4);
-          System.arraycopy(bytes, y * srcWidth * 4 + x * 4 + idx * srcWidth * 4, byteColors, idx * width * 4, width * 4);
-        }
+          ByteBuffer colors = ByteBuffer.allocate(height * width * 4);
+          byte[] byteColors = colors.array();
 
-        bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        bitmap.copyPixelsFromBuffer(colors);
+          switch (fit) {
+            case 0:
+            case 1:
+            default:
+              for (int idx = 0; idx < height; ++idx) {
+                System.arraycopy(bytes, y * srcWidth * 4 + x * 4 + idx * srcWidth * 4, byteColors, idx * width * 4, width * 4);
+              }
+              break;
+          }
 
-        try {
-          FileOutputStream out = new FileOutputStream(value);
-          out.write(colors.array());
-        }
-        catch (IOException ignored) {
+          bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+          bitmap.copyPixelsFromBuffer(colors);
+
+          try {
+            FileOutputStream out = new FileOutputStream(value);
+            out.write(colors.array());
+          }
+          catch (IOException ignored) {
+          }
         }
       }
       catch (IOException ignored) {
@@ -373,21 +351,6 @@ public class Render {
       catch (IOException ignored) {
       }
     }
-  }
-
-  private Bitmap resizeCrop(Bitmap bitmap, int width, int height) {
-    float srcWidth = (float) bitmap.getWidth();
-    float srcHeight = (float) bitmap.getHeight();
-    float scale = Math.max(width / srcWidth, height / srcHeight);
-    int dstWidth = Math.round(srcWidth * scale);
-    int dstHeight = Math.round(srcHeight * scale);
-    int x = (dstWidth - width) / 2;
-    int y = (dstHeight - height) / 2;
-    Matrix matrix = new Matrix();
-    matrix.postScale(scale, scale);
-    bitmap = Bitmap.createBitmap(bitmap, 0, 0, dstWidth, dstHeight, matrix, false);
-    bitmap = Bitmap.createBitmap(bitmap, x, y, width, height);
-    return bitmap;
   }
 
   private void dispose() {

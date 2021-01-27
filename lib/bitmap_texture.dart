@@ -8,47 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:storages/storages.dart';
 
-int _bitmaps = 0;
-int _maxBitmaps = 0;
-
-void _add() {
-  ++_bitmaps;
-  _maxBitmaps = max(_maxBitmaps, _bitmaps);
-}
-
-void _sub() {
-  --_bitmaps;
-  _maxBitmaps = max(_maxBitmaps, _bitmaps);
-}
-
-Future<ui.Codec> instantiateImageCodecEx(
-  Uint8List list, {
-  int targetWidth,
-  int targetHeight,
-  bool allowUpscaling = true,
-}) async {
-  final ui.ImmutableBuffer buffer = await ui.ImmutableBuffer.fromUint8List(list);
-  final ui.ImageDescriptor descriptor = await ui.ImageDescriptor.encoded(buffer);
-  if (!allowUpscaling) {
-    if (targetWidth != null && targetWidth > descriptor.width) {
-      targetWidth = descriptor.width;
-    }
-    if (targetHeight != null && targetHeight > descriptor.height) {
-      targetHeight = descriptor.height;
-    }
-  }
-  if (targetWidth / descriptor.width > targetHeight / descriptor.height) {
-    targetHeight = null;
-  }
-  else {
-    targetWidth = null;
-  }
-  return descriptor.instantiateCodec(
-    targetWidth: targetWidth,
-    targetHeight: targetHeight,
-  );
-}
-
 class BitMapNaive {
   static const MethodChannel _channel = const MethodChannel('bitmap');
 
@@ -67,8 +26,24 @@ class BitMapNaive {
       await _channel.invokeMethod('dl', {
         'textureIds': textureIds,
       });
-      _textureSum -= textureIds.length;
+      _ntextures -= textureIds.length;
     }
+  }
+
+  /// More texture needed.
+  ///
+  /// Every time call the [initState] of [BitMap], count it up.
+  static void up() {
+    ++_nexist;
+    _ntop = max(_ntop, _nexist);
+  }
+
+  /// Less texture needed.
+  ///
+  /// Every time call the [dispose] of [BitMap], count it down.
+  static void down() {
+    --_nexist;
+    _ntop = max(_ntop, _nexist);
   }
 
   /// Add [textureId] to the [textureIdPool].
@@ -100,13 +75,14 @@ class BitMapNaive {
     int textureId = _tryToGetTextureId(width, height);
 
     if (textureId == -1) {
-      if (_textureSum >= _maxBitmaps) {
+      if (_ntextures >= _ntop) {
         return null;
       }
     }
 
     if (textureId == -1) {
-      ++_textureSum;
+      // It means the invoke of 'r' will create new texture.
+      ++_ntextures;
     }
 
     List cache = await _tryToFindBitMapCache(path, width, height, fit);
@@ -115,13 +91,10 @@ class BitMapNaive {
     int srcWidth = cache[3];
     int srcHeight = cache[4];
 
-    // await _storeCache(cache);
-
-    print('textureId ... $textureId, findCache ... $findCache');
     // For some case, there is no need to transfer so many params.
     int invokedTextureId = await _channel.invokeMethod('r', {
       'textureId': textureId,
-      'path': path,
+      'path': path, // Not used in the method channel.
       'width': width,
       'height': height,
       'srcWidth': srcWidth,
@@ -159,6 +132,40 @@ class BitMapNaive {
     }
   }
 
+  /// An extention of [ui.instantiateImageCodec].
+  ///
+  /// This function decode and resize the image to a suitable size.
+  ///
+  /// This function will keep the aspect ratio of image.
+  static Future<ui.Codec> _instantiateImageCodecEx(
+    Uint8List list, {
+    int targetWidth,
+    int targetHeight,
+    bool allowUpscaling = true,
+  }) async {
+    final ui.ImmutableBuffer buffer =
+        await ui.ImmutableBuffer.fromUint8List(list);
+    final ui.ImageDescriptor descriptor =
+        await ui.ImageDescriptor.encoded(buffer);
+    if (!allowUpscaling) {
+      if (targetWidth != null && targetWidth > descriptor.width) {
+        targetWidth = descriptor.width;
+      }
+      if (targetHeight != null && targetHeight > descriptor.height) {
+        targetHeight = descriptor.height;
+      }
+    }
+    if (targetWidth / descriptor.width > targetHeight / descriptor.height) {
+      targetHeight = null;
+    } else {
+      targetWidth = null;
+    }
+    return descriptor.instantiateCodec(
+      targetWidth: targetWidth,
+      targetHeight: targetHeight,
+    );
+  }
+
   /// Try to find the cache path of bitmap.
   ///
   /// This use [FixSizedStorage] for safe cache.
@@ -175,7 +182,11 @@ class BitMapNaive {
     if (!findCache) {
       value = await _fixSizedStorage.touch(key);
 
-      ui.Codec codec = await instantiateImageCodecEx(await File(path).readAsBytes(), targetWidth: width.toInt(), targetHeight: height.toInt(), allowUpscaling: true);
+      ui.Codec codec = await _instantiateImageCodecEx(
+          await File(path).readAsBytes(),
+          targetWidth: width.toInt(),
+          targetHeight: height.toInt(),
+          allowUpscaling: true);
       ui.FrameInfo frameInfo = await codec.getNextFrame();
       ui.Image image = frameInfo.image;
       Uint8List colors = (await image.toByteData()).buffer.asUint8List();
@@ -183,11 +194,6 @@ class BitMapNaive {
 
       srcWidth = image.width;
       srcHeight = image.height;
-
-      // await _fixSizedStorage.set(key, value);
-
-      // findCache = true;
-      print('BitMap ... codec');
     }
 
     return [findCache, value, key, srcWidth, srcHeight];
@@ -267,10 +273,21 @@ class BitMapNaive {
   /// You can call it frequently, but in fact it will only be executed once.
   static Future<void> initialize = _init();
 
+  /// The current exist number of [BitMap] widget.
   ///
+  /// It means the number of textures are under used.
+  static int _nexist = 0;
+
+  /// The top number of [BitMap] widget exist at one time.
   ///
+  /// It means the number of textures may been showed at one time.
+  static int _ntop = 0;
+
+  /// The total number of textures have been created now.
   ///
-  static int _textureSum = 0;
+  /// It should be less equal to [_ntop] and used to keep the suitable number
+  /// of textures.
+  static int _ntextures = 0;
 }
 
 /// Create a [BitMap] widget.
@@ -308,18 +325,24 @@ class BitMap extends StatefulWidget {
 
 class BitMapNaiveState extends State<BitMap> {
   int _textureId;
-  bool useBitMap = true;
+
+  /// [nowait] means if this widget need to wait for texture from [BitMapNaive].
+  ///
+  /// If [true], no need to wait texture, and just use [Texture] widget to show
+  /// image; or if [false], use [Image.file] to show the image until there are f
+  /// ree textures.
+  bool nowait = true;
 
   @override
   void initState() {
     super.initState();
-    _add();
+    BitMapNaive.up();
     run();
   }
 
   @override
   void dispose() {
-    _sub();
+    BitMapNaive.down();
     put();
     super.dispose();
   }
@@ -344,8 +367,7 @@ class BitMapNaiveState extends State<BitMap> {
       put(); // put the old textureId if have.
       _textureId = value;
       if (_textureId == null) {
-        useBitMap = false;
-        print('useBitMap ... $useBitMap');
+        nowait = false;
       }
 
       if (mounted) {
@@ -367,7 +389,7 @@ class BitMapNaiveState extends State<BitMap> {
     return Container(
       width: widget.width,
       height: widget.height,
-      child: useBitMap
+      child: nowait
           ? _textureId == null
               ? null
               : Texture(

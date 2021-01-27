@@ -10,7 +10,7 @@ import 'package:storages/storages.dart';
 
 /// Scroll physics for limit the max velocity to be 16000.
 class BouncingScrollPhysicsEx extends BouncingScrollPhysics {
-  const BouncingScrollPhysicsEx({ ScrollPhysics parent }) : super(parent: parent);
+  const BouncingScrollPhysicsEx({ScrollPhysics parent}) : super(parent: parent);
 
   @override
   BouncingScrollPhysicsEx applyTo(ScrollPhysics ancestor) {
@@ -48,13 +48,6 @@ class _AlbumState extends State<Album> {
     super.initState();
     controller = ScrollController();
     init();
-
-    /// The speed slide by handle can be larger than 50k.
-    /// 
-    /// Use [BouncingScrollPhysicsEx] to limit the maximum speed.
-    Timer.periodic(Duration(milliseconds: 100), (timer) {
-      print('velocity: ${controller?.position?.activity?.velocity}');
-    });
   }
 
   @override
@@ -79,16 +72,16 @@ class _AlbumState extends State<Album> {
           List<AssetEntity> assetEntityList = await assetPathEntity.assetList;
           for (var assetEntity in assetEntityList) {
             // if (assetEntity.width > 0 && assetEntity.height > 0) {
-              String key = assetEntity.id.replaceAll('/', '_');
-              String path = await fixSizedStorage.get(key);
-              if (path == null) {
-                path = await fixSizedStorage.touch(key);
-                Uint8List thumbData =
-                    await assetEntity.thumbDataWithSize(width, height);
-                File(path).writeAsBytesSync(thumbData);
-                await fixSizedStorage.set(key, path);
-              }
-              list.add(path);
+            String key = assetEntity.id.replaceAll('/', '_');
+            String path = await fixSizedStorage.get(key);
+            if (path == null) {
+              path = await fixSizedStorage.touch(key);
+              Uint8List thumbData =
+                  await assetEntity.thumbDataWithSize(width, height);
+              File(path).writeAsBytesSync(thumbData);
+              await fixSizedStorage.set(key, path);
+            }
+            list.add(path);
             // }
           }
         }
@@ -121,7 +114,7 @@ class _AlbumState extends State<Album> {
         GridView.builder(
             padding: EdgeInsets.all(1),
             controller: controller,
-            physics:  BouncingScrollPhysicsEx(),
+            physics: BouncingScrollPhysicsEx(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
               mainAxisSpacing: 1,
