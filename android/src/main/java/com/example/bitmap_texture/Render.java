@@ -22,6 +22,8 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
@@ -37,6 +39,7 @@ public class Render {
   private final TextureRegistry.SurfaceTextureEntry entry;
   private final SurfaceTexture surfaceTexture;
   private final long textureId;
+  private final Lock lock;  // The global lock.
 
   private final HandlerThread handlerThread;
   private final Handler handler;
@@ -77,11 +80,12 @@ public class Render {
 
   private Bitmap bitmap;
 
-  public Render(Context context, TextureRegistry.SurfaceTextureEntry entry, SurfaceTexture surfaceTexture, long textureId) {
+  public Render(Context context, TextureRegistry.SurfaceTextureEntry entry, SurfaceTexture surfaceTexture, long textureId, Lock lock) {
     this.context = context;
     this.entry = entry;
     this.surfaceTexture = surfaceTexture;
     this.textureId = textureId;
+    this.lock = lock;
 
     handlerThread = new HandlerThread("Render");
     handlerThread.start();
@@ -297,6 +301,8 @@ public class Render {
 
   private void makeBitMap(int width, int height, int srcWidth, int srcHeight, int fit, String value, Boolean findCache) {
     if (!findCache) {
+      lock.lock();
+
       ByteBuffer data = ByteBuffer.allocate(srcHeight * srcWidth * 4);
       File file = new File(value);  // value is the path of bitmap.
       try {
@@ -334,6 +340,8 @@ public class Render {
       }
       catch (IOException ignored) {
       }
+
+      lock.unlock();
     }
     else {
       // rgba

@@ -20,13 +20,25 @@ class BitMapNaive {
   /// Note that some texture will be kept as the are under build. This function
   /// will only dispose the textures which are free and in the [textureIdPool].
   static Future dispose() async {
+    stop = true;
+
     for (var key in textureIdPool.keys) {
       var textureIds = textureIdPool[key].sublist(0); // deepcopy.
       textureIdPool[key] = [];
-      await _channel.invokeMethod('dl', {
-        'textureIds': textureIds,
-      });
       _ntextures -= textureIds.length;
+      for (int idx = 0; idx < textureIds.length; ++idx) {
+        if (!stop) {
+          for (var id in textureIds.sublist(idx)) {
+            putTextureId(id, key.width, key.height);
+          }
+          break;
+        }
+
+        await _channel.invokeMethod('dl', {
+          'textureIds': [textureIds[idx]],
+        });
+        await Future.delayed(Duration(milliseconds: 100));
+      }
     }
   }
 
@@ -70,6 +82,7 @@ class BitMapNaive {
   /// This function will make cache of textureId and make cache of bitmap.
   static Future<int> render(
       String path, double width, double height, BoxFit fit) async {
+    stop = false;  // interp dispose
     await initialize;
 
     int textureId = _tryToGetTextureId(width, height);
@@ -288,6 +301,8 @@ class BitMapNaive {
   /// It should be less equal to [_ntop] and used to keep the suitable number
   /// of textures.
   static int _ntextures = 0;
+
+  static bool stop = false;
 }
 
 /// Create a [BitMap] widget.
@@ -367,8 +382,8 @@ class BitMapNaiveState extends State<BitMap> {
       put(); // put the old textureId if have.
       _textureId = value;
       if (_textureId == null) {
-        print('BitMap [nowait] ... $nowait');
         nowait = false;
+        print('BitMap [nowait] ... $nowait');
       }
 
       if (mounted) {

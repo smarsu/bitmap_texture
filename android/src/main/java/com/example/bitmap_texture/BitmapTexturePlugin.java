@@ -11,6 +11,8 @@ import androidx.collection.LongSparseArray;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.MethodCall;
@@ -29,6 +31,7 @@ public class BitmapTexturePlugin implements FlutterPlugin, MethodCallHandler {
   private TextureRegistry textures;
   private Context context;
   private final LongSparseArray<Render> renders = new LongSparseArray<>();  // LongSparseArray have better performance than HashMap.
+  private final Lock lock = new ReentrantLock();
 
   @Override
   public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
@@ -59,7 +62,7 @@ public class BitmapTexturePlugin implements FlutterPlugin, MethodCallHandler {
         surfaceTexture.setDefaultBufferSize(width, height);
 
         textureId = entry.id();
-        Render render = new Render(context, entry, surfaceTexture, textureId);
+        Render render = new Render(context, entry, surfaceTexture, textureId, lock);
         render.r(result, width, height, srcWidth, srcHeight, fit, bitmap, findCache);
         renders.put(textureId, render);
       }
