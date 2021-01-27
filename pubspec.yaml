@@ -1,8 +1,6 @@
 name: bitmap_texture
-description: A new flutter plugin project.
-version: 0.0.1
-author:
-homepage:
+description: BitMap is an alternative to Image.file, achieving higher performance image display.
+homepage: https://github.com/smarsu/bitmap_texture.git
 
 environment:
   sdk: ">=2.7.0 <3.0.0"
