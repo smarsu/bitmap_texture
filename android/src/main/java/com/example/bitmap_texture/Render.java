@@ -332,7 +332,9 @@ public class Render {
 
           try {
             FileOutputStream out = new FileOutputStream(value);
+            lock.lock();
             out.write(colors.array());
+            lock.unlock();
           }
           catch (IOException ignored) {
           }
