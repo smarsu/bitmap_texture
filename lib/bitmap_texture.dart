@@ -77,6 +77,18 @@ class BitMapNaive {
     }
   }
 
+  static Future<void> create(int n, double width, double height) async {
+    for (int i = 0; i < n; ++i) {
+      ++_ntextures;
+      int id = await _channel.invokeMethod('i', {
+        'width': width,
+        'height': height,
+      });
+      print('Init: textureId: $id, width: $width, height ... $height');
+      putTextureId(id, width, height);
+    }
+  }
+
   /// Render the image on the interface.
   ///
   /// This function will make cache of textureId and make cache of bitmap.
@@ -86,6 +98,7 @@ class BitMapNaive {
     await initialize;
 
     int textureId = _tryToGetTextureId(width, height);
+    print('textureId: $textureId, width: $width, height ... $height');
 
     if (textureId == -1) {
       if (_ntextures >= _ntop) {
@@ -97,6 +110,8 @@ class BitMapNaive {
       // It means the invoke of 'r' will create new texture.
       ++_ntextures;
     }
+
+    // bool findId = textureId != -1;
 
     List cache = await _tryToFindBitMapCache(path, width, height, fit);
     bool findCache = cache[0];
@@ -116,6 +131,11 @@ class BitMapNaive {
       'bitmap': value, // value is the path of bitmap.
       'findCache': findCache,
     });
+
+    // if (!findId) {
+    //   // It means the invoke of 'r' will create new texture.
+    //   ++_ntextures;
+    // }
 
     await _storeCache(cache);
 

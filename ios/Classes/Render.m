@@ -57,6 +57,15 @@ typedef struct {
     _height = height;
     _glock = glock;
     
+    _path      = NULL;
+    // _width     = 0;
+    // _height    = 0;
+    _srcWidth  = 0;
+    _srcHeight = 0;
+    _fit       = 0;
+    _bitmap    = NULL;
+    _findCache = false;
+    
     _vertices = NULL;
     _colors = NULL;
     _canceled = false;
@@ -125,7 +134,8 @@ typedef struct {
     }
     
     [_lock lock];
-    bool needRender = path != _path || width != _width || height != _height || fit != _fit || bitmap != _bitmap || findCache != _findCache;
+    // bool needRender = path != _path || width != _width || height != _height || fit != _fit || bitmap != _bitmap || findCache != _findCache;
+    bool needRender = path != _path || fit != _fit || bitmap != _bitmap || findCache != _findCache;
     result    = _result;
     path      = _path;
     width     = _width;

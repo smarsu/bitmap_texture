@@ -46,6 +46,20 @@ public class BitmapTexturePlugin implements FlutterPlugin, MethodCallHandler {
   @Override
   public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
     Map<String, Object> arguments = call.arguments();
+    if (call.method.equals("i")) {
+      int width = (int) (double) arguments.get("width");
+      int height = (int) (double) arguments.get("height");
+
+      TextureRegistry.SurfaceTextureEntry entry = textures.createSurfaceTexture();
+      SurfaceTexture surfaceTexture = entry.surfaceTexture();
+      surfaceTexture.setDefaultBufferSize(width, height);
+
+      long textureId = entry.id();
+      Render render = new Render(context, entry, surfaceTexture, textureId, lock);
+      // render.r(result, width, height, srcWidth, srcHeight, fit, bitmap, findCache);
+      renders.put(textureId, render);
+      result.success(textureId);
+    }
     if (call.method.equals("r")) {  // render
       long textureId = ((Number) arguments.get("textureId")).longValue();
       int width = (int) (double) arguments.get("width");

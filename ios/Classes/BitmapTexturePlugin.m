@@ -20,7 +20,20 @@
 }
 
 - (void)handleMethodCall:(FlutterMethodCall *)call result:(FlutterResult)result {
-  if ([@"r" isEqualToString:call.method]) {  // render
+  if ([@"i" isEqualToString:call.method]) {
+    int width = [call.arguments[@"width"] intValue];
+    int height = [call.arguments[@"height"] intValue];
+
+    NSInteger __block id = 0;  // Register TextureId
+    Render *render = [[Render alloc] initWithCallback:^() {
+      [self.textures textureFrameAvailable:id];
+    } width:width height:height glock:_glock];
+    id = (NSInteger) [_textures registerTexture:render];
+    [render setId:id];
+    _renders[@(id)] = render;
+    result(@(id));
+  }
+  else if ([@"r" isEqualToString:call.method]) {  // render
     NSNumber *textureId = call.arguments[@"textureId"];
     NSString *path = call.arguments[@"path"];
     int width = [call.arguments[@"width"] intValue];
