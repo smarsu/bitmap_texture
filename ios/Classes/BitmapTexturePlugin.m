@@ -25,6 +25,8 @@
     NSString *path = call.arguments[@"path"];
     int width = [call.arguments[@"width"] intValue];
     int height = [call.arguments[@"height"] intValue];
+    int srcWidth = [call.arguments[@"srcWidth"] intValue];
+    int srcHeight = [call.arguments[@"srcHeight"] intValue];
     int fit = [call.arguments[@"fit"] intValue];
     NSString *bitmap = call.arguments[@"bitmap"];
     bool findCache = [call.arguments[@"findCache"] boolValue];
@@ -36,12 +38,12 @@
       } width:width height:height glock:_glock];
       id = (NSInteger) [_textures registerTexture:render];
       [render setId:id];
-      [render r:result path:path width:width height:height fit:fit bitmap:bitmap findCache:findCache];
+      [render r:result path:path width:width height:height srcWidth:srcWidth srcHeight:srcHeight fit:fit bitmap:bitmap findCache:findCache];
       _renders[@(id)] = render;
     }
     else {
       Render *render = _renders[textureId];
-      [render r:result path:path width:width height:height fit:fit bitmap:bitmap findCache:findCache];
+      [render r:result path:path width:width height:height srcWidth:srcWidth srcHeight:srcHeight fit:fit bitmap:bitmap findCache:findCache];
     }
   }
   else if ([@"dl" isEqualToString:call.method]) {  // dispose list

@@ -59,18 +59,18 @@ public class Render {
     -1f,  1f, 0.0f,
      1f,  1f, 0.0f,
   };
-  // static final float[] textureData = {
-  //   0f, 1f, 0.0f,
-  //   1f, 1f, 0.0f,
-  //   0f, 0f, 0.0f,
-  //   1f, 0f, 0.0f,
-  // };
-  static final float[] textureData = {
-    0f, 0f, 0.0f,
-    1f, 0f, 0.0f,
-    0f, 1f, 0.0f,
-    1f, 1f, 0.0f,
-  };
+   static final float[] textureData = {
+     0f, 1f, 0.0f,
+     1f, 1f, 0.0f,
+     0f, 0f, 0.0f,
+     1f, 0f, 0.0f,
+   };
+//  static final float[] textureData = {
+//    0f, 0f, 0.0f,
+//    1f, 0f, 0.0f,
+//    0f, 1f, 0.0f,
+//    1f, 1f, 0.0f,
+//  };
   static final int COORS_PER_VERTEX = 3;
   static final int vertexCount = vertexData.length / COORS_PER_VERTEX;
   static final int vertexStride = COORS_PER_VERTEX * 4;
@@ -100,11 +100,11 @@ public class Render {
   }
 
   /// value is the path of bitmap.
-  public void r(final Result result, final String path, final int width, final int height, final int fit, final String value, final Boolean findCache) {
+  public void r(final Result result, final String path, final int width, final int height, final int srcWidth, final int srcHeight, final int fit, final String value, final Boolean findCache) {
     handler.post(new Runnable() {
       @Override
       public void run() {
-        render(result, path, width, height, fit, value, findCache);
+        render(result, path, width, height, srcWidth, srcHeight, fit, value, findCache);
       }
     });
   }
@@ -283,8 +283,8 @@ public class Render {
     GLES20.glVertexAttribPointer(afPosition, COORS_PER_VERTEX, GLES20.GL_FLOAT, false, vertexStride, textureBuffer);
   }
 
-  private void render(final Result result, String path, int width, int height, int fit, String value, Boolean findCache) {
-    makeBitMap(path, width, height, fit, value, findCache);
+  private void render(final Result result, String path, int width, int height, int srcWidth, int srcHeight, int fit, String value, Boolean findCache) {
+    makeBitMap(path, width, height, srcWidth, srcHeight, fit, value, findCache);
 
     if (bitmap != null && !bitmap.isRecycled()) {
       GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
@@ -300,28 +300,59 @@ public class Render {
     });
   }
 
-  private void makeBitMap(String path, int width, int height, int fit, String value, Boolean findCache) {
+  private void makeBitMap(String path, int width, int height, int srcWidth, int srcHeight, int fit, String value, Boolean findCache) {
     if (!findCache) {
-      FutureTarget<Bitmap> bitmapFutureTarget = Glide.with(context).asBitmap().load(path).submit();
+//      FutureTarget<Bitmap> bitmapFutureTarget = Glide.with(context).asBitmap().load(path).submit();
+//      try {
+//        bitmap = bitmapFutureTarget.get();
+//      } catch (InterruptedException ignored) {
+//      } catch (ExecutionException ignored) {
+//      }
+//
+//      switch (fit) {
+//        case 0:
+//        case 2:
+//        default:
+//          bitmap = resizeCrop(bitmap, width, height);
+//          break;
+//      }
+//
+//      try {
+//        FileOutputStream out = new FileOutputStream(value);
+//        ByteBuffer colors = ByteBuffer.allocate(height * width * 4);
+//        bitmap.copyPixelsToBuffer(colors);
+//        out.write(colors.array());
+//      }
+//      catch (IOException ignored) {
+//      }
+      // rgba
+      ByteBuffer data = ByteBuffer.allocate(srcHeight * srcWidth * 4);
+      // value is the path of bitmap.
+      File file = new File(value);
       try {
-        bitmap = bitmapFutureTarget.get();
-      } catch (InterruptedException ignored) {
-      } catch (ExecutionException ignored) {
-      }
+        FileInputStream in = new FileInputStream(file);
+        int size = in.read(data.array());
+        byte[] bytes = data.array();
 
-      switch (fit) {
-        case 0:
-        case 2:
-        default:
-          bitmap = resizeCrop(bitmap, width, height);
-          break;
-      }
+        int x = (srcWidth - width) / 2;
+        int y = (srcHeight - height) / 2;
 
-      try {
-        FileOutputStream out = new FileOutputStream(value);
         ByteBuffer colors = ByteBuffer.allocate(height * width * 4);
-        bitmap.copyPixelsToBuffer(colors);
-        out.write(colors.array());
+        byte[] byteColors = colors.array();
+        for (int idx = 0; idx < height; ++idx) {
+//          System.arraycopy(byteColors, idx * width * 4, bytes, y * srcWidth * 4 + x * 4 + idx * srcWidth * 4, width * 4);
+          System.arraycopy(bytes, y * srcWidth * 4 + x * 4 + idx * srcWidth * 4, byteColors, idx * width * 4, width * 4);
+        }
+
+        bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        bitmap.copyPixelsFromBuffer(colors);
+
+        try {
+          FileOutputStream out = new FileOutputStream(value);
+          out.write(colors.array());
+        }
+        catch (IOException ignored) {
+        }
       }
       catch (IOException ignored) {
       }

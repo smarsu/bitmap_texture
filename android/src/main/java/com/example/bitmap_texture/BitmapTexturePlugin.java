@@ -48,6 +48,8 @@ public class BitmapTexturePlugin implements FlutterPlugin, MethodCallHandler {
       String path = arguments.get("path").toString();
       int width = (int) (double) arguments.get("width");
       int height = (int) (double) arguments.get("height");
+      int srcWidth = (int) arguments.get("srcWidth");
+      int srcHeight = (int) arguments.get("srcHeight");
       int fit = (int) arguments.get("fit");
       String bitmap = arguments.get("bitmap").toString();
       boolean findCache = (boolean) arguments.get("findCache");
@@ -59,13 +61,13 @@ public class BitmapTexturePlugin implements FlutterPlugin, MethodCallHandler {
 
         textureId = entry.id();
         Render render = new Render(context, entry, surfaceTexture, textureId);
-        render.r(result, path, width, height, fit, bitmap, findCache);
+        render.r(result, path, width, height, srcWidth, srcHeight, fit, bitmap, findCache);
         renders.put(textureId, render);
       }
       else {  // Just render
         Render render = renders.get(textureId);
         if (render != null) {
-          render.r(result, path, width, height, fit, bitmap, findCache);
+          render.r(result, path, width, height, srcWidth, srcHeight, fit, bitmap, findCache);
         }
       }
     }

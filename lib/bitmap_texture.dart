@@ -21,6 +21,34 @@ void _sub() {
   _maxBitmaps = max(_maxBitmaps, _bitmaps);
 }
 
+Future<ui.Codec> instantiateImageCodecEx(
+  Uint8List list, {
+  int targetWidth,
+  int targetHeight,
+  bool allowUpscaling = true,
+}) async {
+  final ui.ImmutableBuffer buffer = await ui.ImmutableBuffer.fromUint8List(list);
+  final ui.ImageDescriptor descriptor = await ui.ImageDescriptor.encoded(buffer);
+  if (!allowUpscaling) {
+    if (targetWidth != null && targetWidth > descriptor.width) {
+      targetWidth = descriptor.width;
+    }
+    if (targetHeight != null && targetHeight > descriptor.height) {
+      targetHeight = descriptor.height;
+    }
+  }
+  if (targetWidth / descriptor.width > targetHeight / descriptor.height) {
+    targetHeight = null;
+  }
+  else {
+    targetWidth = null;
+  }
+  return descriptor.instantiateCodec(
+    targetWidth: targetWidth,
+    targetHeight: targetHeight,
+  );
+}
+
 class BitMapNaive {
   static const MethodChannel _channel = const MethodChannel('bitmap');
 
@@ -84,6 +112,8 @@ class BitMapNaive {
     List cache = await _tryToFindBitMapCache(path, width, height, fit);
     bool findCache = cache[0];
     String value = cache[1];
+    int srcWidth = cache[3];
+    int srcHeight = cache[4];
 
     // await _storeCache(cache);
 
@@ -94,12 +124,14 @@ class BitMapNaive {
       'path': path,
       'width': width,
       'height': height,
+      'srcWidth': srcWidth,
+      'srcHeight': srcHeight,
       'fit': _fitToIndex(fit),
       'bitmap': value, // value is the path of bitmap.
       'findCache': findCache,
     });
 
-    // await _storeCache(cache);
+    await _storeCache(cache);
 
     return invokedTextureId;
   }
@@ -138,22 +170,27 @@ class BitMapNaive {
     String value = await _fixSizedStorage.get(key);
 
     bool findCache = value == null ? false : true;
+    int srcWidth = 0;
+    int srcHeight = 0;
     if (!findCache) {
       value = await _fixSizedStorage.touch(key);
 
-      ui.Codec codec = await ui.instantiateImageCodec(await File(path).readAsBytes(), targetWidth: width.toInt(), targetHeight: height.toInt(), allowUpscaling: true);
+      ui.Codec codec = await instantiateImageCodecEx(await File(path).readAsBytes(), targetWidth: width.toInt(), targetHeight: height.toInt(), allowUpscaling: true);
       ui.FrameInfo frameInfo = await codec.getNextFrame();
       ui.Image image = frameInfo.image;
       Uint8List colors = (await image.toByteData()).buffer.asUint8List();
       await File(value).writeAsBytes(colors);
 
-      await _fixSizedStorage.set(key, value);
+      srcWidth = image.width;
+      srcHeight = image.height;
 
-      findCache = true;
+      // await _fixSizedStorage.set(key, value);
+
+      // findCache = true;
       print('BitMap ... codec');
     }
 
-    return [findCache, value, key];
+    return [findCache, value, key, srcWidth, srcHeight];
   }
 
   /// Store the bitmap cache.

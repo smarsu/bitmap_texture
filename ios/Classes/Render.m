@@ -37,6 +37,8 @@ typedef struct {
 @property (nonatomic) NSString *path;
 @property (nonatomic) int width;
 @property (nonatomic) int height;
+@property (nonatomic) int srcWidth;
+@property (nonatomic) int srcHeight;
 @property (nonatomic) int fit;
 @property (nonatomic) NSString *bitmap;
 @property (nonatomic) bool findCache;
@@ -76,12 +78,14 @@ typedef struct {
   _textureId = textureId;
 }
 
-- (void)r:(FlutterResult)result path:(NSString *)path width:(int)width height:(int)height fit:(int)fit bitmap:(NSString *)bitmap findCache:(bool)findCache {
+- (void)r:(FlutterResult)result path:(NSString *)path width:(int)width height:(int)height srcWidth:(int)srcWidth srcHeight:(int)srcHeight fit:(int)fit bitmap:(NSString *)bitmap findCache:(bool)findCache {
   [self.lock lock];
   _result    = result;
   _path      = path;
   _width     = width;
   _height    = height;
+  _srcWidth  = srcWidth;
+  _srcHeight = srcHeight;
   _fit       = fit;
   _bitmap    = bitmap;
   _findCache = findCache;
@@ -100,6 +104,8 @@ typedef struct {
   NSString *path   = NULL;
   int width        = 0;
   int height       = 0;
+  int srcWidth     = 0;
+  int srcHeight    = 0;
   int fit          = 0;
   NSString *bitmap = NULL;
   bool findCache   = false;
@@ -124,13 +130,15 @@ typedef struct {
     path      = _path;
     width     = _width;
     height    = _height;
+    srcWidth  = _srcWidth;
+    srcHeight = _srcHeight;
     fit       = _fit;
     bitmap    = _bitmap;
     findCache = _findCache;
     [_lock unlock];
     
     if (needRender) {
-      [self makeBitMap:path width:width height:height fit:fit bitmap:bitmap findCache:findCache];
+      [self makeBitMap:path width:width height:height srcWidth:srcWidth srcHeight:srcHeight fit:fit bitmap:bitmap findCache:findCache];
       if (!_canceled) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, _width, _height, 0, GL_RGBA, GL_UNSIGNED_BYTE, _colors);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -256,18 +264,33 @@ typedef struct {
   return shader;
 }
 
-- (void)makeBitMap:(NSString *)path width:(int)width height:(int)height fit:(int)fit bitmap:(NSString *)bitmap findCache:(bool)findCache {
+- (void)makeBitMap:(NSString *)path width:(int)width height:(int)height srcWidth:(int)srcWidth srcHeight:(int)srcHeight fit:(int)fit bitmap:(NSString *)bitmap findCache:(bool)findCache {
   if (!findCache) {
-    [_glock lock];
-    UIImage *image = [UIImage imageWithContentsOfFile:path];
-    if ([self checkImage:image]) {
-      image = [self resizeCrop:image size:CGSizeMake(_width, _height)];
-      [self imageToColor:image];
-      NSMutableData *data = [[NSMutableData alloc] init];
-      [data appendBytes:_colors length:_height * _width * 4];
-      [data writeToFile:bitmap atomically:YES];
+//    [_glock lock];
+//    UIImage *image = [UIImage imageWithContentsOfFile:path];
+//    if ([self checkImage:image]) {
+//      image = [self resizeCrop:image size:CGSizeMake(_width, _height)];
+//      [self imageToColor:image];
+//      NSMutableData *data = [[NSMutableData alloc] init];
+//      [data appendBytes:_colors length:_height * _width * 4];
+//      [data writeToFile:bitmap atomically:YES];
+//    }
+    uint8_t *data = malloc(sizeof(uint8_t) * srcWidth * srcHeight * 4);
+    NSData *reader = [NSData dataWithContentsOfFile:bitmap];
+    [reader getBytes:data length:srcWidth * srcHeight * 4];
+    int x = (srcWidth - _width) / 2;
+    int y = (srcHeight - _height) / 2;
+    for (int i = 0; i < _height; ++i) {
+      int start = y * srcWidth * 4 + x * 4 + i * srcWidth * 4;
+      memcpy(_colors + i * _width * 4, data + start, sizeof(int8_t) * _width * 4);
     }
-    [_glock unlock];
+    
+    NSMutableData *mutdata = [[NSMutableData alloc] init];
+    [mutdata appendBytes:_colors length:_height * _width * 4];
+    [mutdata writeToFile:bitmap atomically:YES];
+    
+    free(data);
+//    [_glock unlock];
   }
   else {
     NSData *reader = [NSData dataWithContentsOfFile:bitmap];
