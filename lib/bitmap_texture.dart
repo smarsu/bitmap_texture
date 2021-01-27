@@ -367,6 +367,7 @@ class BitMapNaiveState extends State<BitMap> {
       put(); // put the old textureId if have.
       _textureId = value;
       if (_textureId == null) {
+        print('BitMap [nowait] ... $nowait');
         nowait = false;
       }
 
