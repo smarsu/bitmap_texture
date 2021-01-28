@@ -301,8 +301,6 @@ public class Render {
 
   private void makeBitMap(int width, int height, int srcWidth, int srcHeight, int fit, String value, Boolean findCache) {
     if (!findCache) {
-      // lock.lock();
-
       ByteBuffer data = ByteBuffer.allocate(srcHeight * srcWidth * 4);
       File file = new File(value);  // value is the path of bitmap.
       try {
@@ -342,8 +340,6 @@ public class Render {
       }
       catch (IOException ignored) {
       }
-
-      // lock.unlock();
     }
     else {
       // rgba

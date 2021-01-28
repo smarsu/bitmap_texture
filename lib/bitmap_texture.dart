@@ -20,20 +20,11 @@ class BitMapNaive {
   /// Note that some texture will be kept as the are under build. This function
   /// will only dispose the textures which are free and in the [textureIdPool].
   static Future dispose() async {
-    stop = true;
-
     for (var key in textureIdPool.keys) {
       var textureIds = textureIdPool[key].sublist(0); // deepcopy.
       textureIdPool[key] = [];
       _ntextures -= textureIds.length;
       for (int idx = 0; idx < textureIds.length; ++idx) {
-        if (!stop) {
-          for (var id in textureIds.sublist(idx)) {
-            putTextureId(id, key.width, key.height);
-          }
-          break;
-        }
-
         await _channel.invokeMethod('dl', {
           'textureIds': [textureIds[idx]],
         });
@@ -77,6 +68,10 @@ class BitMapNaive {
     }
   }
 
+  /// Create textures before the [BitMap] have been created.
+  /// 
+  /// Call [BitMapNaive.create] before than [BitMap] will have better 
+  /// performance to show the album at first time.
   static Future<void> create(int n, double width, double height) async {
     for (int i = 0; i < n; ++i) {
       ++_ntextures;
@@ -84,7 +79,6 @@ class BitMapNaive {
         'width': width,
         'height': height,
       });
-      print('Init: textureId: $id, width: $width, height ... $height');
       putTextureId(id, width, height);
     }
   }
@@ -94,11 +88,9 @@ class BitMapNaive {
   /// This function will make cache of textureId and make cache of bitmap.
   static Future<int> render(
       String path, double width, double height, BoxFit fit) async {
-    stop = false;  // interp dispose
     await initialize;
 
     int textureId = _tryToGetTextureId(width, height);
-    print('textureId: $textureId, width: $width, height ... $height');
 
     if (textureId == -1) {
       if (_ntextures >= _ntop) {
@@ -110,8 +102,6 @@ class BitMapNaive {
       // It means the invoke of 'r' will create new texture.
       ++_ntextures;
     }
-
-    // bool findId = textureId != -1;
 
     List cache = await _tryToFindBitMapCache(path, width, height, fit);
     bool findCache = cache[0];
@@ -131,11 +121,6 @@ class BitMapNaive {
       'bitmap': value, // value is the path of bitmap.
       'findCache': findCache,
     });
-
-    // if (!findId) {
-    //   // It means the invoke of 'r' will create new texture.
-    //   ++_ntextures;
-    // }
 
     await _storeCache(cache);
 
@@ -321,8 +306,6 @@ class BitMapNaive {
   /// It should be less equal to [_ntop] and used to keep the suitable number
   /// of textures.
   static int _ntextures = 0;
-
-  static bool stop = false;
 }
 
 /// Create a [BitMap] widget.
@@ -403,7 +386,7 @@ class BitMapNaiveState extends State<BitMap> {
       _textureId = value;
       if (_textureId == null) {
         nowait = false;
-        print('BitMap [nowait] ... $nowait');
+        print('BitMap is wait for texture.');
       }
 
       if (mounted) {

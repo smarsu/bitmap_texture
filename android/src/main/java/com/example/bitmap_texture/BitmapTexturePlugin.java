@@ -56,7 +56,6 @@ public class BitmapTexturePlugin implements FlutterPlugin, MethodCallHandler {
 
       long textureId = entry.id();
       Render render = new Render(context, entry, surfaceTexture, textureId, lock);
-      // render.r(result, width, height, srcWidth, srcHeight, fit, bitmap, findCache);
       renders.put(textureId, render);
       result.success(textureId);
     }
