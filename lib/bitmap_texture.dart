@@ -223,7 +223,7 @@ class BitMapNaive {
       ui.FrameInfo frameInfo = await codec.getNextFrame();
       ui.Image image = frameInfo.image;
       Uint8List colors = (await image.toByteData()).buffer.asUint8List();
-      File(value).writeAsBytesSync(colors);
+      await File(value).writeAsBytes(colors);
 
       srcWidth = image.width;
       srcHeight = image.height;
