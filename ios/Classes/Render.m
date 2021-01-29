@@ -11,9 +11,9 @@ typedef struct {
 @interface Render ()
 
 @property (nonatomic) void (^callback)(void);
-@property (nonatomic) NSThread *thread;
+@property (nonatomic) int width;
+@property (nonatomic) int height;
 @property (nonatomic) NSInteger textureId;
-@property (atomic) NSLock *glock;  // The global lock get from BitmapPlugin.
 
 @property (nonatomic) CVPixelBufferRef target;
 @property (nonatomic) CVOpenGLESTextureCacheRef textureCache;
@@ -25,8 +25,8 @@ typedef struct {
 @property (nonatomic) SenceVertex *vertices;
 
 @property (atomic) NSLock *lock;  // The lock of paths.
-@property (atomic) NSLock *dlock;  // The lock of dispose.
-@property (atomic) bool canceled;
+@property (atomic) bool do_r;  // Call [r] to set true, call [doRender] to set false
+@property (atomic) bool do_init;  // Call [initGL] to set true, and make it atomic to avoid init twice.
 
 @property (nonatomic) EAGLContext *context;
 @property (nonatomic) GLuint program;
@@ -35,8 +35,6 @@ typedef struct {
 
 @property (nonatomic) FlutterResult result;
 @property (nonatomic) NSString *path;
-@property (nonatomic) int width;
-@property (nonatomic) int height;
 @property (nonatomic) int srcWidth;
 @property (nonatomic) int srcHeight;
 @property (nonatomic) int fit;
@@ -49,39 +47,36 @@ typedef struct {
 
 @implementation Render
 
-- (instancetype)initWithCallback:(void (^)(void))callback width:(int)width height:(int)height glock:(NSLock *)glock {
+- (instancetype)initWithCallback:(void (^)(void))callback width:(int)width height:(int)height {
   self = [super init];
   if (self) {
     _callback = callback;
-    _width = width;
-    _height = height;
-    _glock = glock;
+    _width    = width;
+    _height   = height;
     
+    _target       = nil;
+    _textureCache = nil;
+    _texture      = nil;
+    
+    _vertices = NULL;
+    _colors   = NULL;
+    
+    _lock  = [[NSLock alloc] init];
+    
+    _do_r    = false;
+    _do_init = false;
+
     _path      = NULL;
     _srcWidth  = 0;
     _srcHeight = 0;
     _fit       = 0;
     _bitmap    = NULL;
     _findCache = false;
-    
-    _vertices = NULL;
-    _colors = NULL;
-    _canceled = false;
-    
-    _target = nil;
-    _textureCache = nil;
-    _texture = nil;
-    
-    _lock = [[NSLock alloc] init];
-    _dlock = [[NSLock alloc] init];
-    
-    _thread = [[NSThread alloc] initWithTarget:self selector:@selector(render) object:nil];
-    [_thread start];
   }
   return self;
 }
 
-- (void)setId:(NSInteger)textureId {
+- (void)si:(NSInteger)textureId {
   _textureId = textureId;
 }
 
@@ -96,73 +91,48 @@ typedef struct {
   _fit       = fit;
   _bitmap    = bitmap;
   _findCache = findCache;
+  
+  _do_r = true;
   [self.lock unlock];
 }
 
 - (void)d {
-  _canceled = true;
   [self dispose];
 }
 
-- (void)render {
-  [_dlock lock];  // lock for dispose.
-  
-  FlutterResult result;
-  NSString *path   = NULL;
-  int width        = 0;
-  int height       = 0;
-  int srcWidth     = 0;
-  int srcHeight    = 0;
-  int fit          = 0;
-  NSString *bitmap = NULL;
-  bool findCache   = false;
-  
-  _colors = malloc(_height * _width * 4);
-  
-  [_glock lock];  // Need to add global lock to avoid glDrawArrays crash?
-  [self doInit];
-  glFinish();
-  [_glock unlock];
-
-  while (true) {
-    CFTimeInterval t1 = CACurrentMediaTime();
-
-    if (_canceled) {
-      break;
-    }
+/// [doRender] will not called at once by two thread, so the [doInit] will be safe to be called once.
+- (void)doRender {
+  if (!_do_init) {
+    _do_init = true;
     
-    [_lock lock];
-    bool needRender = path != _path || fit != _fit || bitmap != _bitmap || findCache != _findCache;
-    result    = _result;
-    path      = _path;
-    width     = _width;
-    height    = _height;
-    srcWidth  = _srcWidth;
-    srcHeight = _srcHeight;
-    fit       = _fit;
-    bitmap    = _bitmap;
-    findCache = _findCache;
-    [_lock unlock];
-    
-    if (needRender) {
-      [self makeBitMap:path width:width height:height srcWidth:srcWidth srcHeight:srcHeight fit:fit bitmap:bitmap findCache:findCache];
-      if (!_canceled) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, _width, _height, 0, GL_RGBA, GL_UNSIGNED_BYTE, _colors);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        glFlush();
-        _callback();
-      }
-      result(@(_textureId));  // you must result for once render call.
-    }
-    
-    CFTimeInterval t2 = CACurrentMediaTime();
-    CFTimeInterval wait = 0.016 - (t2 - t1);
-    if (wait > 0) {
-      [NSThread sleepForTimeInterval:wait];
-    }
+    _colors = malloc(_height * _width * 4);  // To do, reuse the [_colors].
+    [self doInit];
+    glFinish();
   }
   
-  [_dlock unlock];  // unlock for dispose.
+  if (_do_r) {
+    [_lock lock];
+    _do_r = false;  // Only here set the [_do_r] to false.
+    FlutterResult result = _result;
+    NSString *path       = _path;
+    int width            = _width;
+    int height           = _height;
+    int srcWidth         = _srcWidth;
+    int srcHeight        = _srcHeight;
+    int fit              = _fit;
+    NSString *bitmap     = _bitmap;
+    bool findCache       = _findCache;
+    [_lock unlock];
+    
+    [EAGLContext setCurrentContext:_context];
+
+    [self makeBitMap:path width:width height:height srcWidth:srcWidth srcHeight:srcHeight fit:fit bitmap:bitmap findCache:findCache];
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, _width, _height, 0, GL_RGBA, GL_UNSIGNED_BYTE, _colors);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glFlush();
+    _callback();
+    result(@(_textureId));
+  }
 }
 
 - (void)doInit {
@@ -220,10 +190,6 @@ typedef struct {
   glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
   GLsizeiptr bufferSizeBytes = sizeof(SenceVertex) * 4;
   _vertices = malloc(sizeof(SenceVertex) * 4);
-  // _vertices[0] = (SenceVertex) {{-1,   1, 0}, {0, 0}};
-  // _vertices[1] = (SenceVertex) {{-1,  -1, 0}, {0, 1}};
-  // _vertices[2] = (SenceVertex) {{ 1,   1, 0}, {1, 0}};
-  // _vertices[3] = (SenceVertex) {{ 1,  -1, 0}, {1, 1}};
   _vertices[0] = (SenceVertex) {{-1,   1, 0}, {0, 1}};
   _vertices[1] = (SenceVertex) {{-1,  -1, 0}, {0, 0}};
   _vertices[2] = (SenceVertex) {{ 1,   1, 0}, {1, 1}};
@@ -272,99 +238,38 @@ typedef struct {
 }
 
 - (void)makeBitMap:(NSString *)path width:(int)width height:(int)height srcWidth:(int)srcWidth srcHeight:(int)srcHeight fit:(int)fit bitmap:(NSString *)bitmap findCache:(bool)findCache {
+  const char *bmp = [bitmap UTF8String];
+  
   if (!findCache) {
-    uint8_t *data = malloc(sizeof(uint8_t) * srcWidth * srcHeight * 4);
-    
-    // read and crop
-    NSData *reader = [NSData dataWithContentsOfFile:bitmap];
-    [reader getBytes:data length:srcWidth * srcHeight * 4];
+    size_t size = srcWidth * srcHeight * 4;
+    uint8_t *data = malloc(sizeof(uint8_t) * size);
+
+    FILE *fpr = fopen(bmp, "rb");
+    fread(data, 1, size, fpr);
     int x = (srcWidth - _width) / 2;
     int y = (srcHeight - _height) / 2;
     for (int i = 0; i < _height; ++i) {
       int start = y * srcWidth * 4 + x * 4 + i * srcWidth * 4;
       memcpy(_colors + i * _width * 4, data + start, sizeof(int8_t) * _width * 4);
     }
+    fclose(fpr);
     
-    // write croped image.
-    NSMutableData *mutdata = [[NSMutableData alloc] init];
-    [mutdata appendBytes:_colors length:_height * _width * 4];
-    [_glock lock];
-    [mutdata writeToFile:bitmap atomically:YES];
-    [_glock unlock];
+    FILE *fpw = fopen(bmp, "wb");
+    fwrite(_colors, 1, _width * _height * 4, fpw);
+    fclose(fpw);
     
     free(data);
   }
   else {
-    NSData *reader = [NSData dataWithContentsOfFile:bitmap];
-    [reader getBytes:_colors length:_height * _width * 4];
+    int size = _width * _height * 4;
+    FILE *fpr = fopen(bmp, "rb");
+    fread(_colors, 1, size, fpr);
+    fclose(fpr);
   }
-}
-
-- (bool) checkImage: (UIImage *)image {
-  CGImageRef cgImageRef = [image CGImage];
-  size_t srcWidth = CGImageGetWidth(cgImageRef);
-  size_t srcHeight = CGImageGetHeight(cgImageRef);
-
-  if (srcWidth == 0 || srcHeight == 0) {
-    NSLog(@"Error Image: %lux%lu\n", srcWidth, srcHeight);
-    memset(_colors, 0, _height * _width * 4);
-    return false;
-  }
-  else {
-    return true;
-  }
-}
-
-- (UIImage *)resizeCrop: (UIImage *)image size:(CGSize)size {
-  float width = (float) size.width;
-  float height = (float) size.height;
-  
-  CGImageRef cgImageRef = [image CGImage];
-  size_t srcWidth = CGImageGetWidth(cgImageRef);
-  size_t srcHeight = CGImageGetHeight(cgImageRef);
-  float scale = MAX(width / srcWidth, height / srcHeight);
-  int dstWidth = round(srcWidth * scale);
-  int dstHeight = round(srcHeight * scale);
-  int x = (dstWidth - width) / 2;
-  int y = (dstHeight - height) / 2;
-
-  UIGraphicsBeginImageContext(CGSizeMake(dstWidth, dstHeight));
-  [image drawInRect:CGRectMake(0, 0, dstWidth, dstHeight)];
-  UIImage *resizedImage = UIGraphicsGetImageFromCurrentImageContext();
-  UIGraphicsEndImageContext();
-  
-  CGImageRef cgResizedImageRef = [resizedImage CGImage];
-  CGImageRef cgCropedImageRef = CGImageCreateWithImageInRect(cgResizedImageRef, CGRectMake(x, y, width, height));
-  
-  UIImage *cropedImage = [UIImage imageWithCGImage:cgCropedImageRef];
-  
-  CGImageRelease(cgImageRef);
-  CGImageRelease(cgResizedImageRef);
-
-  CGImageRelease(cgCropedImageRef);
-  
-  return cropedImage;
-}
-
-- (void)imageToColor:(UIImage *)image {
-  CGImageRef cgImageRef = [image CGImage];
-  CGRect rect = CGRectMake(0, 0, _width, _height);
-
-  CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-  CGContextRef context = CGBitmapContextCreate(_colors, _width, _height, 8, _width * 4, colorSpace, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
-  CGContextTranslateCTM(context, 0, _height);
-  CGContextScaleCTM(context, 1.f, -1.f);
-  CGColorSpaceRelease(colorSpace);
-  CGContextClearRect(context, rect);
-  CGContextDrawImage(context, rect, cgImageRef);
-
-  CGImageRelease(cgImageRef);
-
-  CGContextRelease(context);
 }
 
 - (void)dispose {
-  [_dlock lock];  // lock for render.
+  [EAGLContext setCurrentContext:_context];
   
   if (_vertices) free(_vertices);
   if (_colors) free(_colors);
@@ -373,7 +278,6 @@ typedef struct {
   glDeleteShader(_vertexShader);
   glDeleteShader(_fragmentShader);
   
-  [EAGLContext setCurrentContext:_context];
   glFinish();
   glDeleteBuffers(1, &_vertexBuffer);
   glDeleteRenderbuffers(1, &_depthBuffer);
@@ -388,8 +292,6 @@ typedef struct {
   if (_textureCache) {
     CFRelease(_textureCache);
   }
-  
-  [_dlock unlock];  // unlock for render.
 }
 
 #pragma mark - FlutterTexture

@@ -7,7 +7,6 @@ import android.opengl.GLES20;
 import android.opengl.GLUtils;
 import android.os.Build;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.Looper;
 
 import androidx.annotation.RequiresApi;
@@ -23,7 +22,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
@@ -41,7 +39,6 @@ public class Render {
   private final long textureId;
   private final Lock lock;  // The global lock.
 
-  private final HandlerThread handlerThread;
   private final Handler handler;
 
   private EGL10 egl;
@@ -63,12 +60,6 @@ public class Render {
      0f, 0f, 0.0f,
      1f, 0f, 0.0f,
    };
-//  static final float[] textureData = {
-//    0f, 0f, 0.0f,
-//    1f, 0f, 0.0f,
-//    0f, 1f, 0.0f,
-//    1f, 1f, 0.0f,
-//  };
   static final int COORS_PER_VERTEX = 3;
   static final int vertexCount = vertexData.length / COORS_PER_VERTEX;
   static final int vertexStride = COORS_PER_VERTEX * 4;
@@ -80,16 +71,14 @@ public class Render {
 
   private Bitmap bitmap;
 
-  public Render(Context context, TextureRegistry.SurfaceTextureEntry entry, SurfaceTexture surfaceTexture, long textureId, Lock lock) {
+  public Render(Context context, TextureRegistry.SurfaceTextureEntry entry, SurfaceTexture surfaceTexture, long textureId, Lock lock, Handler handler) {
     this.context = context;
     this.entry = entry;
     this.surfaceTexture = surfaceTexture;
     this.textureId = textureId;
     this.lock = lock;
+    this.handler = handler;
 
-    handlerThread = new HandlerThread("Render");
-    handlerThread.start();
-    handler = new Handler(handlerThread.getLooper());
     handler.post(new Runnable() {
       @Override
       public void run() {
@@ -110,16 +99,14 @@ public class Render {
 
   /// dispose and wait the end of HandlerThread.
   @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
-  public void d() throws InterruptedException {
+  public void d() {
     handler.post(new Runnable() {
       @Override
       public void run() {
         dispose();
+        entry.release();  // May need release after dispose.
       }
     });
-    handlerThread.quitSafely();
-    handlerThread.join();
-    entry.release();
   }
 
   private void init() {
@@ -283,6 +270,10 @@ public class Render {
   }
 
   private void render(final Result result, int width, int height, int srcWidth, int srcHeight, int fit, String value, Boolean findCache) {
+    if (!egl.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) {
+      throw new RuntimeException("Can not run eglMakeCurrent");
+    }
+
     makeBitMap(width, height, srcWidth, srcHeight, fit, value, findCache);
 
     if (bitmap != null && !bitmap.isRecycled()) {

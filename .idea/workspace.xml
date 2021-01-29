@@ -2,8 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="94fa532f-040e-45e7-8769-aefaabbc36d8" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/android/src/main/java/com/example/bitmap_texture/BitmapTexturePlugin.java" beforeDir="false" afterPath="$PROJECT_DIR$/android/src/main/java/com/example/bitmap_texture/BitmapTexturePlugin.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/src/main/java/com/example/bitmap_texture/Render.java" beforeDir="false" afterPath="$PROJECT_DIR$/android/src/main/java/com/example/bitmap_texture/Render.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/example/lib/album.dart" beforeDir="false" afterPath="$PROJECT_DIR$/example/lib/album.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ios/Classes/BitmapTexturePlugin.m" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Classes/BitmapTexturePlugin.m" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ios/Classes/Render.h" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Classes/Render.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ios/Classes/Render.m" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Classes/Render.m" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/bitmap_texture.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/bitmap_texture.dart" afterDir="false" />
     </list>

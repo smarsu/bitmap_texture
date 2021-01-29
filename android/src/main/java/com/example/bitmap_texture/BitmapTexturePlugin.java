@@ -3,6 +3,8 @@ package com.example.bitmap_texture;
 import android.content.Context;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
+import android.os.Handler;
+import android.os.HandlerThread;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
@@ -32,6 +34,7 @@ public class BitmapTexturePlugin implements FlutterPlugin, MethodCallHandler {
   private Context context;
   private final LongSparseArray<Render> renders = new LongSparseArray<>();  // LongSparseArray have better performance than HashMap.
   private final Lock lock = new ReentrantLock();
+  private Handler handler;
 
   @Override
   public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
@@ -40,23 +43,21 @@ public class BitmapTexturePlugin implements FlutterPlugin, MethodCallHandler {
 
     textures = flutterPluginBinding.getTextureRegistry();
     context = flutterPluginBinding.getApplicationContext();
+
+    HandlerThread handlerThread = new HandlerThread("BitmapTexturePlugin");
+    handlerThread.start();
+    handler = new Handler(handlerThread.getLooper());
   }
 
   @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
   @Override
   public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
     Map<String, Object> arguments = call.arguments();
-    if (call.method.equals("i")) {
+    if (call.method.equals("i")) {  // create render and no do render
       int width = (int) (double) arguments.get("width");
       int height = (int) (double) arguments.get("height");
 
-      TextureRegistry.SurfaceTextureEntry entry = textures.createSurfaceTexture();
-      SurfaceTexture surfaceTexture = entry.surfaceTexture();
-      surfaceTexture.setDefaultBufferSize(width, height);
-
-      long textureId = entry.id();
-      Render render = new Render(context, entry, surfaceTexture, textureId, lock);
-      renders.put(textureId, render);
+      long textureId = createRender(width, height);
       result.success(textureId);
     }
     if (call.method.equals("r")) {  // render
@@ -70,20 +71,12 @@ public class BitmapTexturePlugin implements FlutterPlugin, MethodCallHandler {
       boolean findCache = (boolean) arguments.get("findCache");
 
       if (textureId == -1) {  // Create a new texture
-        TextureRegistry.SurfaceTextureEntry entry = textures.createSurfaceTexture();
-        SurfaceTexture surfaceTexture = entry.surfaceTexture();
-        surfaceTexture.setDefaultBufferSize(width, height);
-
-        textureId = entry.id();
-        Render render = new Render(context, entry, surfaceTexture, textureId, lock);
-        render.r(result, width, height, srcWidth, srcHeight, fit, bitmap, findCache);
-        renders.put(textureId, render);
+        textureId = createRender(width, height);
       }
-      else {  // Just render
-        Render render = renders.get(textureId);
-        if (render != null) {
-          render.r(result, width, height, srcWidth, srcHeight, fit, bitmap, findCache);
-        }
+
+      Render render = renders.get(textureId);
+      if (render != null) {
+        render.r(result, width, height, srcWidth, srcHeight, fit, bitmap, findCache);
       }
     }
     else if (call.method.equals("dl")) {  // Dispose list of texture.
@@ -95,16 +88,23 @@ public class BitmapTexturePlugin implements FlutterPlugin, MethodCallHandler {
       for (Number textureId : textureIds) {
         Render render = renders.get((textureId).longValue());
         if (render != null) {
-          try {
-            render.d();
-          } catch (InterruptedException e) {
-            e.printStackTrace();
-          }
+          render.d();
           renders.remove((textureId).longValue());
         }
       }
       result.success(null);
     }
+  }
+
+  public long createRender(int width, int height) {
+    TextureRegistry.SurfaceTextureEntry entry = textures.createSurfaceTexture();
+    SurfaceTexture surfaceTexture = entry.surfaceTexture();
+    surfaceTexture.setDefaultBufferSize(width, height);
+
+    long textureId = entry.id();
+    Render render = new Render(context, entry, surfaceTexture, textureId, lock, handler);
+    renders.put(textureId, render);
+    return textureId;
   }
 
   @Override

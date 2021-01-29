@@ -64,6 +64,9 @@ class _AlbumState extends State<Album> {
     var result = await PhotoManager.requestPermission();
     print('PhotoManager requestPermission ... $result');
 
+    await BitMapNaive.create(60, 200, 200);
+    await Future.delayed(Duration(milliseconds: 3000));
+
     if (result) {
       List<AssetPathEntity> assetPathEntityList =
           await PhotoManager.getAssetPathList();
@@ -71,18 +74,18 @@ class _AlbumState extends State<Album> {
         if (['Recent', 'Recents'].contains(assetPathEntity.name)) {
           List<AssetEntity> assetEntityList = await assetPathEntity.assetList;
           for (var assetEntity in assetEntityList) {
-            // if (assetEntity.width > 0 && assetEntity.height > 0) {
-            String key = assetEntity.id.replaceAll('/', '_');
-            String path = await fixSizedStorage.get(key);
-            if (path == null) {
-              path = await fixSizedStorage.touch(key);
-              Uint8List thumbData =
-                  await assetEntity.thumbDataWithSize(width, height);
-              File(path).writeAsBytesSync(thumbData);
-              await fixSizedStorage.set(key, path);
+            if (assetEntity.width > 0 && assetEntity.height > 0) {
+              String key = assetEntity.id.replaceAll('/', '_');
+              String path = await fixSizedStorage.get(key);
+              if (path == null) {
+                path = await fixSizedStorage.touch(key);
+                Uint8List thumbData =
+                    await assetEntity.thumbDataWithSize(width, height);
+                File(path).writeAsBytesSync(thumbData);
+                await fixSizedStorage.set(key, path);
+              }
+              list.add(path);
             }
-            list.add(path);
-            // }
           }
         }
       }
